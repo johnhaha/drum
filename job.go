@@ -7,14 +7,15 @@ import (
 )
 
 type RunFunc func() error
-type OnFail func(error)
+
+//return failure count and err
+type OnFail func(int, error)
 
 type RunStatus struct {
-	Status    bool
-	TryCount  int
-	SuccessAt time.Time
-	FailAt    time.Time
-	Done      chan struct{}
+	Fail     bool
+	TryCount int
+	FailAt   time.Time
+	Done     chan struct{}
 }
 
 var jobLog = make(map[string]*RunStatus)
@@ -24,7 +25,7 @@ var jobLogMtx sync.RWMutex
 func registerJob(name string) *RunStatus {
 	jobLogMtx.Lock()
 	defer jobLogMtx.Unlock()
-	status := &RunStatus{}
+	status := &RunStatus{Done: make(chan struct{})}
 	jobLog[name] = status
 	return status
 }
@@ -37,19 +38,13 @@ func markStartJob(name string) {
 	log.Printf("🥁 try start job %v for the %v time", name, status.TryCount)
 }
 
-func markStartFail(name string) {
+func markStartFail(name string, fail OnFail, err error) {
 	jobLogMtx.Lock()
 	defer jobLogMtx.Unlock()
 	status := jobLog[name]
 	status.FailAt = time.Now()
-}
-
-func markJobSuccess(name string) {
-	jobLogMtx.Lock()
-	defer jobLogMtx.Unlock()
-	status := jobLog[name]
-	status.SuccessAt = time.Now()
-	log.Printf("🥁 job %v finish running at %v", name, status.SuccessAt)
+	status.Fail = true
+	fail(status.TryCount, err)
 }
 
 func getRetryTime(name string) time.Duration {
@@ -70,4 +65,17 @@ func getStatus(name string) *RunStatus {
 		return status
 	}
 	return nil
+}
+
+func remJob(name string) {
+	jobLogMtx.Lock()
+	defer jobLogMtx.Unlock()
+	delete(jobLog, name)
+}
+
+func closeJob(name string) {
+	jobLogMtx.Lock()
+	defer jobLogMtx.Unlock()
+	status := jobLog[name]
+	close(status.Done)
 }
