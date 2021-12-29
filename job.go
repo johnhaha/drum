@@ -9,7 +9,7 @@ import (
 type RunFunc func() error
 
 //return failure count and err
-type OnFail func(int, error)
+type OnFail func(string, int, error)
 
 type RunStatus struct {
 	Fail     bool
@@ -44,7 +44,7 @@ func markStartFail(name string, fail OnFail, err error) {
 	status := jobLog[name]
 	status.FailAt = time.Now()
 	status.Fail = true
-	fail(status.TryCount, err)
+	fail(name, status.TryCount, err)
 }
 
 func getRetryTime(name string) time.Duration {

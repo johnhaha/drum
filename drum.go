@@ -2,6 +2,7 @@ package drum
 
 import (
 	"context"
+	"log"
 	"time"
 )
 
@@ -27,12 +28,14 @@ func RunJob(ctx context.Context, name string, job RunFunc, fail OnFail) {
 		for {
 			select {
 			case <-ctx.Done():
+				log.Println("🥁 job done", name)
 				return
 			case <-status.Done:
 				return
 			}
 		}
 	}
+	log.Println("🥁 job done", name)
 }
 
 //check job status
