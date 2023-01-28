@@ -8,16 +8,12 @@ import (
 
 // keep try job until success
 func RunJob(ctx context.Context, name string, job RunFunc, fail OnFail, jobSetting ...JobSetting) {
-	status, exist := registerJob(name)
+	status, _ := registerJob(name)
 	for _, s := range jobSetting {
 		s(status)
 	}
-	if exist && status.RunLock {
-		log.Println("🥁 duplicate run", name, ", job quit")
-		return
-	}
-	defer remJob(name)
 
+	defer remJob(name)
 	markStartJob(name)
 	//run job, repeat if err != nil
 	err := job()
@@ -48,4 +44,14 @@ func RunJob(ctx context.Context, name string, job RunFunc, fail OnFail, jobSetti
 		}
 	}
 	log.Println("🥁 job done", name)
+}
+
+func LockRun(name string, job RunFunc) error {
+	_, exist := registerJob(name)
+	if exist {
+		log.Println("🥁 duplicate run job", name)
+		return ErrorDuplicateRun{}
+	}
+	defer remJob(name)
+	return job()
 }

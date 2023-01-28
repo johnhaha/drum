@@ -7,6 +7,12 @@ import (
 
 type RunFunc func() error
 
+type ErrorDuplicateRun struct{}
+
+func (err ErrorDuplicateRun) Error() string {
+	return "duplicate run"
+}
+
 //return failure count and err
 
 type RunStatus struct {
@@ -20,13 +26,21 @@ type RunStatus struct {
 	TryStep int
 	//will wait for max time, default is 300 second
 	MaxStep int
-	//lock run, rem duplicated run
-	RunLock bool
 }
 
 var jobLog = make(map[string]*RunStatus)
 
 var jobLogMtx sync.RWMutex
+
+func RegisterEmptyJob(name string) (exist bool) {
+	jobLogMtx.Lock()
+	defer jobLogMtx.Unlock()
+	if _, ok := jobLog[name]; ok {
+		return true
+	}
+	jobLog[name] = nil
+	return false
+}
 
 func registerJob(name string) (status *RunStatus, exist bool) {
 	jobLogMtx.Lock()
