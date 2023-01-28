@@ -20,18 +20,23 @@ type RunStatus struct {
 	TryStep int
 	//will wait for max time, default is 300 second
 	MaxStep int
+	//lock run, rem duplicated run
+	RunLock bool
 }
 
 var jobLog = make(map[string]*RunStatus)
 
 var jobLogMtx sync.RWMutex
 
-func registerJob(name string) *RunStatus {
+func registerJob(name string) (status *RunStatus, exist bool) {
 	jobLogMtx.Lock()
 	defer jobLogMtx.Unlock()
-	status := &RunStatus{Done: make(chan struct{}), TryStep: 5, MaxStep: 300}
+	if s, ok := jobLog[name]; ok {
+		return s, true
+	}
+	status = &RunStatus{Done: make(chan struct{}), TryStep: 5, MaxStep: 300}
 	jobLog[name] = status
-	return status
+	return status, false
 }
 
 func markStartJob(name string) (lastTry bool) {
@@ -67,15 +72,6 @@ func getRetryTime(name string) time.Duration {
 		tm = status.MaxStep
 	}
 	return time.Second * time.Duration(tm)
-}
-
-func getStatus(name string) *RunStatus {
-	jobLogMtx.Lock()
-	defer jobLogMtx.Unlock()
-	if status, ok := jobLog[name]; ok {
-		return status
-	}
-	return nil
 }
 
 func remJob(name string) {

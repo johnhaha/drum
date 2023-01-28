@@ -19,3 +19,9 @@ func SetJobMaxStep(s int) JobSetting {
 		rs.MaxStep = s
 	}
 }
+
+func SetRunLock(lock bool) JobSetting {
+	return func(rs *RunStatus) {
+		rs.RunLock = lock
+	}
+}

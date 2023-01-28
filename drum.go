@@ -6,11 +6,15 @@ import (
 	"time"
 )
 
-//keep try job until success
+// keep try job until success
 func RunJob(ctx context.Context, name string, job RunFunc, fail OnFail, jobSetting ...JobSetting) {
-	status := registerJob(name)
+	status, exist := registerJob(name)
 	for _, s := range jobSetting {
 		s(status)
+	}
+	if exist && status.RunLock {
+		log.Println("🥁 duplicate run", name, ", job quit")
+		return
 	}
 	defer remJob(name)
 
@@ -45,15 +49,3 @@ func RunJob(ctx context.Context, name string, job RunFunc, fail OnFail, jobSetti
 	}
 	log.Println("🥁 job done", name)
 }
-
-//check job status
-// func CheckJob(name string) *RunStatus {
-// 	status := getStatus(name)
-// 	return status
-// }
-
-// func ConfigStep(config ...DrumConfig) {
-// 	for _, f := range config {
-// 		f()
-// 	}
-// }
